@@ -1,0 +1,52 @@
+---
+# ==============================================================================
+# deploy.yml - ScrapSaathi Application Deployment / Rolling Update Playbook
+# Performs zero-downtime code update, migrations, and health verification.
+# ==============================================================================
+
+- name: Deploy ScrapSaathi Django Application
+  hosts: app_servers
+  serial: 1  # Rolling update across nodes
+  vars_files:
+    - ../vars/main.yml
+
+  tasks:
+    - name: Pre-deployment health check
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/health"
+        method: GET
+        status_code: [200, 502, 503]
+      register: pre_health
+      ignore_errors: yes
+
+    - name: Deploy application files
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../backend/"
+        dest: "{{ app_root_dir }}/backend/"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+      become: yes
+
+    - name: Run Django database migrations
+      ansible.builtin.command:
+        cmd: "{{ app_root_dir }}/.venv/bin/python manage.py migrate --noinput"
+        chdir: "{{ app_root_dir }}/backend"
+      become_user: "{{ app_user }}"
+      become: yes
+
+    - name: Reload ScrapSaathi systemd service
+      ansible.builtin.systemd:
+        name: scrapsaathi
+        state: reloaded
+      become: yes
+
+    - name: Post-deployment health verification probe
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/health"
+        method: GET
+        status_code: 200
+      register: post_health
+      retries: 6
+      delay: 2
+      until: post_health.status == 200

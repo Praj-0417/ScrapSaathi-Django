@@ -1,0 +1,31 @@
+# ==============================================================================
+# ScrapSaathi Ansible Variables (Sanitized Example Configuration)
+# Secrets should be supplied via Ansible Vault in production: ansible-vault encrypt_string
+# ==============================================================================
+
+app_name: scrapsaathi
+app_user: scrapsaathi
+app_group: scrapsaathi
+app_root_dir: /opt/scrapsaathi-django
+app_repo_url: "https://github.com/scrapsaathi/scrapsaathi-django.git"
+app_version: main
+
+# Service & Gunicorn
+app_port: 8000
+gunicorn_workers: 3
+gunicorn_timeout: 60
+
+# Environment tokens (Sanitized placeholders)
+django_secret_key: "{{ vault_django_secret_key | default('change-me-in-production-vault-token') }}"
+jwt_secret: "{{ vault_jwt_secret | default('nk-securities-eval-jwt-secret-vault') }}"
+
+# Database
+db_engine: postgresql
+db_name: scrapsaathi_db
+db_user: scrapsaathi_user
+db_password: "{{ vault_db_password | default('scrapsaathi_db_secure_password') }}"
+db_host: localhost
+db_port: 5432
+
+# Prometheus / Monitoring
+prometheus_scrape_port: 9090

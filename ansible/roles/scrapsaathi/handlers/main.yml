@@ -1,0 +1,13 @@
+---
+# handlers file for scrapsaathi
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Restart scrapsaathi
+  ansible.builtin.systemd:
+    name: scrapsaathi
+    state: restarted
+  become: yes

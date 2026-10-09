@@ -1,0 +1,34 @@
+# ==============================================================================
+# ScrapSaathi Prometheus Alerting Rules
+# Monitors application availability, 5xx error rate spikes, and latency breaches.
+# ==============================================================================
+
+groups:
+  - name: scrapsaathi_alerts
+    rules:
+      - alert: ScrapSaathiApplicationDown
+        expr: up{job="scrapsaathi-django"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "ScrapSaathi Django backend instance is down"
+          description: "Instance {{ $labels.instance }} has been unreachable for more than 30 seconds."
+
+      - alert: HighHttp5xxErrorRate
+        expr: sum(rate(django_http_responses_before_middlewares_total{status=~"5.."}[2m])) / sum(rate(django_http_responses_before_middlewares_total[2m])) * 100 > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated HTTP 5xx error rate detected"
+          description: "HTTP 5xx error rate is above 5% (current: {{ $value }}%) over the last 2 minutes."
+
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, sum(rate(django_http_requests_latency_including_middlewares_by_view_method_bundle_bucket[5m])) by (le)) > 1.0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 latency breach"
+          description: "95th percentile request latency exceeds 1.0 second on instance {{ $labels.instance }}."

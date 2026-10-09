@@ -1,0 +1,25 @@
+# ==============================================================================
+# Prometheus Scrape Configuration for ScrapSaathi
+# Scrapes Django DRF metrics via django-prometheus at /metrics
+# ==============================================================================
+
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+rule_files:
+  - "alert_rules.yml"
+
+scrape_configs:
+  - job_name: "scrapsaathi-django"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["backend:8000", "host.docker.internal:8000"]
+        labels:
+          app: "scrapsaathi"
+          environment: "production"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

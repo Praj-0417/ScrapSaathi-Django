@@ -1,0 +1,99 @@
+# ==============================================================================
+# ScrapSaathi Complete Production-Grade Docker Compose Stack
+# Runs isolated Django REST Framework backend, PostgreSQL, Prometheus, and Grafana.
+# Completely isolated container names, volume mounts, and network.
+# ==============================================================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: scrapsaathi-django-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-scrapsaathi-docker-compose-key-xyz
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - PORT=8000
+      - DB_ENGINE=postgresql
+      - POSTGRES_DB=scrapsaathi_db
+      - POSTGRES_USER=scrapsaathi_user
+      - POSTGRES_PASSWORD=scrapsaathi_password
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - JWT_SECRET=supersecret-scrapsaathi-jwt-secret-key-nk-securities
+      - JWT_EXPIRES_IN=86400
+      - PROMETHEUS_METRICS_ENABLED=True
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - scrapsaathi_isolated_net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: scrapsaathi-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: scrapsaathi_db
+      POSTGRES_USER: scrapsaathi_user
+      POSTGRES_PASSWORD: scrapsaathi_password
+    volumes:
+      - scrapsaathi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scrapsaathi_user -d scrapsaathi_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scrapsaathi_isolated_net
+
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: scrapsaathi-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    depends_on:
+      - backend
+    networks:
+      - scrapsaathi_isolated_net
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: scrapsaathi-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - scrapsaathi_isolated_net
+
+volumes:
+  scrapsaathi_pgdata:
+    name: scrapsaathi_pgdata_isolated
+
+networks:
+  scrapsaathi_isolated_net:
+    name: scrapsaathi_isolated_net

@@ -1,0 +1,27 @@
+[Unit]
+Description=ScrapSaathi Django REST Framework Application
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_root_dir }}/backend
+EnvironmentFile={{ app_root_dir }}/.env
+ExecStart={{ app_root_dir }}/.venv/bin/gunicorn \
+    --workers {{ gunicorn_workers }} \
+    --bind 0.0.0.0:{{ app_port }} \
+    --timeout {{ gunicorn_timeout }} \
+    --access-logfile - \
+    --error-logfile - \
+    scrapsaathi.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=3s
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
